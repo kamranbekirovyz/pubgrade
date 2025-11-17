@@ -7,6 +7,15 @@ export interface PackageInfo {
   isOutdated: boolean;
   updateType: UpdateType;
   changelog?: string;
+  pubspecPath: string;
+  projectName: string;
+}
+
+export interface ProjectGroup {
+  projectName: string;
+  pubspecPath: string;
+  packages: PackageInfo[];
+  outdatedCount: number;
 }
 
 export interface PubspecDependency {

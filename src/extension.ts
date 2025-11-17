@@ -31,25 +31,22 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('pubgrade.updatePackage', async (item) => {
+    vscode.commands.registerCommand('pubgrade.updatePackage', async (item: any) => {
       if (item && item.packageInfo) {
-        const pubspecPath = await findPubspecPath();
-        if (pubspecPath) {
-          const success = await Updater.updatePackage(
-            pubspecPath,
-            item.packageInfo.name,
-            item.packageInfo.latestVersion
-          );
-          if (success) {
-            setTimeout(() => refreshPackages(), 1000);
-          }
+        const success = await Updater.updatePackage(
+          item.packageInfo.pubspecPath,
+          item.packageInfo.name,
+          item.packageInfo.latestVersion
+        );
+        if (success) {
+          setTimeout(() => refreshPackages(), 1000);
         }
       }
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('pubgrade.showChangelog', async (item) => {
+    vscode.commands.registerCommand('pubgrade.showChangelog', async (item: any) => {
       if (item && item.packageInfo) {
         await showChangelogAsDocument(item.packageInfo);
       }
@@ -58,7 +55,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Add click handler for tree items
   context.subscriptions.push(
-    vscode.commands.registerCommand('pubgrade.itemClick', async (item) => {
+    vscode.commands.registerCommand('pubgrade.itemClick', async (item: any) => {
       if (!item.packageInfo.isOutdated) {
         vscode.window.showInformationMessage(`${item.packageInfo.name} is up to date (${item.packageInfo.currentVersion})`);
         return;
@@ -73,18 +70,47 @@ export function activate(context: vscode.ExtensionContext) {
   refreshPackages();
 }
 
-async function findPubspecPath(): Promise<string | null> {
+interface PubspecInfo {
+  path: string;
+  projectName: string;
+}
+
+async function discoverAllPubspecs(): Promise<PubspecInfo[]> {
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (!workspaceFolders) {
     vscode.window.showErrorMessage('No workspace folder open');
-    return null;
+    return [];
   }
 
-  const pubspecPath = path.join(workspaceFolders[0].uri.fsPath, 'pubspec.yaml');
-  return pubspecPath;
+  // Find all pubspec.yaml files (VS Code automatically excludes files.exclude and search.exclude patterns)
+  // Explicitly exclude .fvm directory used by Flutter Version Management
+  const pubspecFiles = await vscode.workspace.findFiles(
+    '**/pubspec.yaml',
+    '**/.fvm/**'
+  );
+
+  // Map to PubspecInfo with project names
+  const pubspecs: PubspecInfo[] = pubspecFiles.map((uri: vscode.Uri) => {
+    const fsPath = uri.fsPath;
+    const dirName = path.dirname(fsPath);
+    const projectName = path.basename(dirName);
+    
+    return {
+      path: fsPath,
+      projectName: projectName
+    };
+  });
+
+  return pubspecs;
 }
 
-async function processPackageBatch(dependencies: any[], startIndex: number, batchSize: number): Promise<PackageInfo[]> {
+async function processPackageBatch(
+  dependencies: any[], 
+  startIndex: number, 
+  batchSize: number, 
+  pubspecPath: string, 
+  projectName: string
+): Promise<PackageInfo[]> {
   const batch = dependencies.slice(startIndex, startIndex + batchSize);
   const promises = batch.map(async (dep) => {
     const cleanVersion = PubspecParser.cleanVersion(dep.version);
@@ -99,7 +125,9 @@ async function processPackageBatch(dependencies: any[], startIndex: number, batc
         currentVersion: cleanVersion,
         latestVersion: latestVersion,
         isOutdated: isOutdated,
-        updateType: updateType
+        updateType: updateType,
+        pubspecPath: pubspecPath,
+        projectName: projectName
       };
     }
     return null;
@@ -110,8 +138,11 @@ async function processPackageBatch(dependencies: any[], startIndex: number, batc
 }
 
 async function refreshPackages() {
-  const pubspecPath = await findPubspecPath();
-  if (!pubspecPath) return;
+  const pubspecs = await discoverAllPubspecs();
+  if (pubspecs.length === 0) {
+    vscode.window.showWarningMessage('No pubspec.yaml files found in workspace');
+    return;
+  }
 
   try {
     // Clear badge while loading
@@ -123,33 +154,53 @@ async function refreshPackages() {
         title: 'Pubgrade:',
         cancellable: false
       },
-      async (progress) => {
-        const dependencies = PubspecParser.parse(pubspecPath);
-        const packages: PackageInfo[] = [];
-        const batchSize = 4;
-        const totalBatches = Math.ceil(dependencies.length / batchSize);
+      async (progress: vscode.Progress<{ message?: string; increment?: number }>) => {
+        const allPackages: PackageInfo[] = [];
+        let totalDependencies = 0;
+        let processedDependencies = 0;
 
-        for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
-          const startIndex = batchIndex * batchSize;
-          const endIndex = Math.min(startIndex + batchSize, dependencies.length);
-          const actualBatchSize = endIndex - startIndex;
-          
-          progress.report({
-            message: `${endIndex} of ${dependencies.length} packages checked`,
-            increment: (actualBatchSize / dependencies.length) * 100
-          });
+        // First, count total dependencies across all pubspecs
+        const pubspecDependencies = pubspecs.map(pubspec => ({
+          pubspec,
+          dependencies: PubspecParser.parse(pubspec.path)
+        }));
 
-          const batchResults = await processPackageBatch(dependencies, startIndex, batchSize);
-          packages.push(...batchResults);
+        totalDependencies = pubspecDependencies.reduce((sum, pd) => sum + pd.dependencies.length, 0);
+
+        // Process each pubspec
+        for (const { pubspec, dependencies } of pubspecDependencies) {
+          const batchSize = 4;
+          const totalBatches = Math.ceil(dependencies.length / batchSize);
+
+          for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+            const startIndex = batchIndex * batchSize;
+            const endIndex = Math.min(startIndex + batchSize, dependencies.length);
+            const actualBatchSize = endIndex - startIndex;
+            
+            progress.report({
+              message: `${processedDependencies + actualBatchSize} of ${totalDependencies} packages checked`,
+              increment: (actualBatchSize / totalDependencies) * 100
+            });
+
+            const batchResults = await processPackageBatch(
+              dependencies, 
+              startIndex, 
+              batchSize,
+              pubspec.path,
+              pubspec.projectName
+            );
+            allPackages.push(...batchResults);
+            processedDependencies += actualBatchSize;
+          }
         }
 
-        treeProvider.setPackages(packages);
+        treeProvider.setPackages(allPackages);
         updateBadge();
         updateStatusBar();
       }
     );
   } catch (error) {
-    vscode.window.showErrorMessage(`Failed to parse pubspec.yaml: ${error}`);
+    vscode.window.showErrorMessage(`Failed to parse pubspec files: ${error}`);
     treeView.badge = undefined;
   }
 }
@@ -200,13 +251,10 @@ async function showChangelogAsDocument(packageInfo: PackageInfo) {
       packageInfo.currentVersion, 
       packageInfo.latestVersion,
       async (packageName: string, version: string) => {
-        // Handle update button click
-        const pubspecPath = await findPubspecPath();
-        if (pubspecPath) {
-          const success = await Updater.updatePackage(pubspecPath, packageName, version);
-          if (success) {
-            setTimeout(() => refreshPackages(), 1000);
-          }
+        // Handle update button click - use pubspecPath from packageInfo
+        const success = await Updater.updatePackage(packageInfo.pubspecPath, packageName, version);
+        if (success) {
+          setTimeout(() => refreshPackages(), 1000);
         }
       }
     );

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.0 - Monorepo & Workspace Support
+
+- **Monorepo support**: Automatically discovers and manages multiple Flutter projects in a workspace
+- **Hierarchical tree view**: Projects now organized in collapsible groups with per-project outdated counts
+- **Multi-pubspec discovery**: Recursively finds all `pubspec.yaml` files across the workspace
+- **Per-project updates**: Each package update targets the correct project's pubspec file
+- **Respects VS Code settings**: Uses existing `files.exclude` and `search.exclude` patterns for discovery
+- **Smart sorting**: Projects with outdated packages shown first, packages within projects sorted by outdated status
+- **Enhanced UI**: Project folders show icon colors and badges based on their packages' update status
+
 ## 1.3.0 - Version Type Indicators
 
 - Visual indicators for update types: major (red), minor (yellow), and patch (blue) updates
