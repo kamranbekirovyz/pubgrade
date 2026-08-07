@@ -1,7 +1,6 @@
 # Style
 
-How this codebase is written. Short on purpose — if a rule needs a paragraph to
-justify, it is probably not worth having.
+How this codebase is written.
 
 ## Layers
 
