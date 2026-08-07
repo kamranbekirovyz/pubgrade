@@ -1,10 +1,13 @@
 import axios, { AxiosInstance } from 'axios';
+import { VersionRequirements } from '../core/conflicts';
 
 /** Everything one pub.dev package document tells us. */
 export interface PubPackage {
   latestVersion: string;
   /** Publish date per version, e.g. `1.2.3` -> Date. */
   publishedAt: Map<string, Date>;
+  /** What each published version depends on. Used to detect conflicts. */
+  versions: VersionRequirements[];
 }
 
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -53,13 +56,16 @@ export class PubDevApi {
     if (typeof latestVersion !== 'string') return null;
 
     const publishedAt = new Map<string, Date>();
+    const versions: VersionRequirements[] = [];
+
     for (const entry of data.versions ?? []) {
-      if (entry?.version && entry?.published) {
-        publishedAt.set(entry.version, new Date(entry.published));
-      }
+      if (typeof entry?.version !== 'string') continue;
+
+      if (entry.published) publishedAt.set(entry.version, new Date(entry.published));
+      versions.push({ version: entry.version, requires: readRequires(entry.pubspec) });
     }
 
-    return { latestVersion, publishedAt };
+    return { latestVersion, publishedAt, versions };
   }
 
   private async get<T>(url: string): Promise<T | null> {
@@ -85,4 +91,22 @@ export class PubDevApi {
     cache.set(key, pending);
     return pending;
   }
+}
+
+/**
+ * The `dependencies:` of one published version, as name -> range.
+ *
+ * Entries written as a map (`sdk: flutter`, `git:`, `path:`) have no range to
+ * compare, so they are left out. Only the strings survive, which keeps a large
+ * package document from staying in memory once we are done with it.
+ */
+function readRequires(pubspec: any): Map<string, string> {
+  const requires = new Map<string, string>();
+  const dependencies = pubspec?.dependencies;
+  if (typeof dependencies !== 'object' || dependencies === null) return requires;
+
+  for (const [name, range] of Object.entries(dependencies)) {
+    if (typeof range === 'string') requires.set(name, range);
+  }
+  return requires;
 }
