@@ -54,14 +54,6 @@
         "command": "pubgrade.refresh",
         "title": "Refresh Packages",
         "icon": "$(refresh)"
-      },
-      {
-        "command": "pubgrade.updatePackage",
-        "title": "Update Package"
-      },
-      {
-        "command": "pubgrade.showChangelog",
-        "title": "Show Changelog"
       }
     ],
     "menus": {
@@ -78,7 +70,9 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile"
+    "pretest": "npm run typecheck",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.test.json"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.5",
@@ -86,7 +80,8 @@
     "@types/semver": "^7.5.0",
     "@types/vscode": "^1.80.0",
     "@vscode/vsce": "^3.6.2",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "axios": "^1.6.0",

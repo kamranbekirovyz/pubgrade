@@ -1,8 +1,12 @@
 .vscode/**
 .vscode-test/**
 src/**
+test/**
+node_modules/**
 .gitignore
+STYLE.md
 tsconfig.json
+tsconfig.test.json
+vitest.config.mts
 **/*.map
 **/*.ts
-
