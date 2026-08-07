@@ -2,8 +2,10 @@
 .vscode-test/**
 src/**
 test/**
+example/**
 .gitignore
 STYLE.md
+CONFLICT.md
 tsconfig.json
 tsconfig.test.json
 vitest.config.mts
