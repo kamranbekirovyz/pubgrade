@@ -1,263 +1,102 @@
 import * as vscode from 'vscode';
-import { PubspecParser } from './pubspecParser';
-import { PubDevClient } from './pubdevClient';
-import { PackageTreeProvider } from './treeProvider';
-import { ChangelogView } from './changelogView';
-import { Updater } from './updater';
-import { PackageInfo, PubspecDependency, ProjectPackages } from './types';
+import { ChangelogService } from './changelogService';
+import { ProgressTracker } from './core/progress';
+import { Package } from './core/types';
+import { PackageService } from './packageService';
+import { PubDevApi } from './pub/pubDevApi';
+import { ChangelogPanel, UpdateTarget } from './ui/changelogPanel';
+import { PackageItem, PackagesTree } from './ui/packagesTree';
+import { setBadge, StatusBar } from './ui/statusBar';
+import { disposeTerminal } from './workspace';
 
-let treeProvider: PackageTreeProvider;
-let statusBarItem: vscode.StatusBarItem;
-let treeView: vscode.TreeView<any>;
-const changelogCache: Map<String, any> = new Map<String, any>();
-
+/**
+ * Wiring only: build the pieces, register the commands, keep the views in
+ * sync. All the thinking lives in `core/`, `packageService` and `pub/`.
+ */
 export function activate(context: vscode.ExtensionContext) {
-  console.log('Flutter Pubgrade extension activated');
+  const api = new PubDevApi();
+  const packages = new PackageService(api);
+  const changelogs = new ChangelogService(api);
 
-  treeProvider = new PackageTreeProvider();
-  treeView = vscode.window.createTreeView('pubgradePackages', {
-    treeDataProvider: treeProvider
-  });
+  const tree = new PackagesTree(packages);
+  const view = vscode.window.createTreeView('pubgradePackages', { treeDataProvider: tree });
+  const statusBar = new StatusBar();
+  const panel = new ChangelogPanel((target, version) => update(target, version));
 
-  statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-  statusBarItem.command = 'pubgrade.refresh';
-  context.subscriptions.push(statusBarItem);
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('pubgrade.refresh', () => refreshPackages())
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('pubgrade.updatePackage', async (item) => {
-      if (!item?.packageInfo) return;
-      const pubspecPath = item.packageInfo.pubspecPath || await findSinglePubspecPath();
-      if (!pubspecPath) return;
-
-      const success = await Updater.updatePackage(
-        pubspecPath,
-        item.packageInfo.name,
-        item.packageInfo.latestVersion
-      );
-      if (success) {
-        treeProvider.updatePackage(item.packageInfo.name, item.packageInfo.latestVersion, pubspecPath);
-        updateBadge();
-        updateStatusBar();
-      }
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('pubgrade.showChangelog', async (item) => {
-      if (item?.packageInfo) {
-        await showChangelogAsDocument(item.packageInfo);
-      }
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('pubgrade.itemClick', async (item) => {
-      if (!item.packageInfo.isOutdated) {
-        vscode.window.showInformationMessage(`${item.packageInfo.name} is up to date (${item.packageInfo.currentVersion})`);
-        return;
-      }
-      await showChangelogAsDocument(item.packageInfo);
-    })
-  );
-
-  refreshPackages();
-}
-
-// Fallback for single-project workspaces
-async function findSinglePubspecPath(): Promise<string | null> {
-  const workspaceFolders = vscode.workspace.workspaceFolders;
-  if (!workspaceFolders) return null;
-
-  const pubspecs = await PubspecParser.findAllPubspecs(workspaceFolders[0].uri.fsPath);
-  return pubspecs[0] || null;
-}
-
-async function fetchPackageInfo(
-  dep: PubspecDependency,
-  lockVersions: Map<string, string> | null,
-  pubspecPath: string
-): Promise<PackageInfo | null> {
-  try {
-    const latestVersion = await PubDevClient.getLatestVersion(dep.name);
-    if (!latestVersion) return null;
-
-    // Use lock file version for caret deps (actual installed version), yaml version otherwise
-    const compareVersion = (dep.hasCaret && lockVersions?.has(dep.name))
-      ? lockVersions.get(dep.name)!
-      : PubspecParser.cleanVersion(dep.version);
-
-    return {
-      name: dep.name,
-      currentVersion: compareVersion,
-      latestVersion,
-      isOutdated: PubDevClient.isOutdated(compareVersion, latestVersion),
-      updateType: PubDevClient.getUpdateType(compareVersion, latestVersion),
-      pubspecPath
-    };
-  } catch (e) {
-    console.error(`Error fetching ${dep.name}:`, e);
+  function render(): void {
+    tree.refresh();
+    statusBar.show(packages.outdatedCount);
+    setBadge(view, packages.outdatedCount);
   }
-  return null;
-}
 
-// Process one pubspec.yaml: parse deps, fetch latest versions concurrently
-async function processProject(
-  pubspecPath: string,
-  progress: vscode.Progress<{ message?: string; increment?: number }>,
-  processedRef: { count: number },
-  totalPackages: number
-): Promise<ProjectPackages> {
-  const projectName = PubspecParser.getProjectName(pubspecPath);
-  const dependencies = PubspecParser.parse(pubspecPath);
-  const packages: PackageInfo[] = [];
-
-  const hasCaretDeps = dependencies.some(d => d.hasCaret);
-  const lockVersions = hasCaretDeps ? PubspecParser.parseLockFile(pubspecPath) : null;
-
-  const queue = [...dependencies];
-  const concurrencyLimit = 4;
-
-  const worker = async () => {
-    while (queue.length > 0) {
-      const dep = queue.shift();
-      if (!dep) break;
-
-      const result = await fetchPackageInfo(dep, lockVersions, pubspecPath);
-      if (result) packages.push(result);
-
-      processedRef.count++;
-      progress.report({
-        message: `${processedRef.count} of ${totalPackages} checked`,
-        increment: (1 / totalPackages) * 100
-      });
+  function update(target: UpdateTarget, version: string): void {
+    try {
+      if (packages.update(target.pubspecPath, target.packageName, version)) {
+        render();
+      } else {
+        vscode.window.showWarningMessage(
+          `Could not find ${target.packageName} in ${target.pubspecPath}`
+        );
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to update ${target.packageName}: ${error}`);
     }
-  };
-
-  const workers = Array(Math.min(concurrencyLimit, dependencies.length))
-    .fill(null)
-    .map(() => worker());
-  await Promise.all(workers);
-
-  return { projectName, pubspecPath, packages };
-}
-
-async function refreshPackages() {
-  changelogCache.clear();
-  const workspaceFolders = vscode.workspace.workspaceFolders;
-  if (!workspaceFolders) return;
-
-  try {
-    treeView.badge = undefined;
-
-    await vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: 'Pubgrade',
-        cancellable: false
-      },
-      async (progress) => {
-        const pubspecPaths = await PubspecParser.findAllPubspecs(workspaceFolders[0].uri.fsPath);
-        if (pubspecPaths.length === 0) return;
-
-        // Count total deps across all projects for accurate progress
-        const allDeps = pubspecPaths.map(p => PubspecParser.parse(p));
-        const totalPackages = allDeps.reduce((sum, deps) => sum + deps.length, 0);
-        const processedRef = { count: 0 };
-
-        // Process all projects
-        const projects: ProjectPackages[] = [];
-        for (const pubspecPath of pubspecPaths) {
-          const project = await processProject(pubspecPath, progress, processedRef, totalPackages);
-          // Only include projects that have dependencies
-          if (project.packages.length > 0) {
-            projects.push(project);
-          }
-        }
-
-        treeProvider.setProjects(projects);
-        updateBadge();
-        updateStatusBar();
-      }
-    );
-  } catch (error) {
-    vscode.window.showErrorMessage(`Failed to refresh packages: ${error}`);
-    treeView.badge = undefined;
   }
-}
 
-function updateBadge() {
-  const outdatedCount = treeProvider.getOutdatedCount();
-  if (outdatedCount > 0) {
-    treeView.badge = {
-      tooltip: `${outdatedCount} outdated package${outdatedCount > 1 ? 's' : ''}`,
-      value: outdatedCount
-    };
-  } else {
-    treeView.badge = undefined;
+  async function refresh(): Promise<void> {
+    changelogs.clearCache();
+    try {
+      await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: 'Pubgrade', cancellable: false },
+        progress => packages.refresh({ report: reporter(progress) })
+      );
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to refresh packages: ${error}`);
+    }
+    render();
   }
-}
 
-function updateStatusBar() {
-  const outdatedCount = treeProvider.getOutdatedCount();
-  if (outdatedCount > 0) {
-    statusBarItem.text = `$(warning) ${outdatedCount} outdated package${outdatedCount > 1 ? 's' : ''}`;
-    statusBarItem.show();
-  } else {
-    statusBarItem.text = `$(check) All packages up to date`;
-    statusBarItem.show();
-  }
-}
-
-async function showChangelogAsDocument(packageInfo: PackageInfo) {
-  try {
-    const changelogFromCache = changelogCache.get(packageInfo.name);
-    let changelog;
-
-    if (changelogFromCache === undefined) {
-      changelog = await vscode.window.withProgress(
+  async function openChangelog(pkg: Package, pubspecPath: string): Promise<void> {
+    try {
+      const request = await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: `Fetching changelog for ${packageInfo.name}...`,
+          title: `Fetching changelog for ${pkg.name}...`,
           cancellable: false
         },
-        async () => {
-          return await PubDevClient.getChangelog(
-            packageInfo.name,
-            packageInfo.currentVersion,
-            packageInfo.latestVersion
-          );
-        }
+        () => changelogs.load(pkg)
       );
-      changelogCache.set(packageInfo.name, changelog);
-    } else {
-      changelog = changelogFromCache;
+      panel.show(request, { pubspecPath, packageName: pkg.name });
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to fetch changelog for ${pkg.name}: ${error}`);
     }
-
-    ChangelogView.show(
-      packageInfo.name,
-      changelog,
-      packageInfo.currentVersion,
-      packageInfo.latestVersion,
-      async (packageName: string, version: string) => {
-        const pubspecPath = packageInfo.pubspecPath || await findSinglePubspecPath();
-        if (!pubspecPath) return;
-
-        const success = await Updater.updatePackage(pubspecPath, packageName, version);
-        if (success) {
-          treeProvider.updatePackage(packageName, version, pubspecPath);
-          updateBadge();
-          updateStatusBar();
-        }
-      }
-    );
-  } catch (error) {
-    vscode.window.showErrorMessage(`Failed to fetch changelog: ${error}`);
-    changelogCache.clear();
   }
+
+  context.subscriptions.push(
+    view,
+    statusBar,
+    { dispose: () => panel.dispose() },
+    { dispose: disposeTerminal },
+
+    vscode.commands.registerCommand('pubgrade.refresh', refresh),
+
+    // Clicking a row: outdated packages open their changelog, the rest just say so.
+    vscode.commands.registerCommand('pubgrade.open', (item?: PackageItem) => {
+      if (!item) return;
+      if (item.pkg.isOutdated) return openChangelog(item.pkg, item.pubspecPath);
+      vscode.window.showInformationMessage(
+        `${item.pkg.name} is up to date (${item.pkg.currentVersion})`
+      );
+    })
+  );
+
+  refresh();
+}
+
+/** Feeds ProgressTracker's steps into VS Code's progress API. */
+function reporter(progress: vscode.Progress<{ message?: string; increment?: number }>) {
+  const tracker = new ProgressTracker();
+  return (checked: number, total: number) => progress.report(tracker.step(checked, total));
 }
 
 export function deactivate() {}
