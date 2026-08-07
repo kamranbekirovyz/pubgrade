@@ -2,6 +2,12 @@
 
 ## 2.1.0
 
+- Fixed `flutter pub get` running in the wrong folder in monorepos
+- Fixed `flutter pub get` failing on Windows
+- Changelogs load faster, and no longer mix up packages between projects
+- New outlined sidebar icon
+- Rewritten internals, now covered by tests
+
 ## 2.0.1
 
 - Exclude `.fvm/` directory from pubspec scanning
