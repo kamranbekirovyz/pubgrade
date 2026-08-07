@@ -4,6 +4,7 @@
     {
       "type": "npm",
       "script": "watch",
+      "path": "clients/vscode",
       "problemMatcher": "$tsc-watch",
       "isBackground": true,
       "presentation": {
