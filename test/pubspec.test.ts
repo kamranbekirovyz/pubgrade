@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   parseDependencies,
   parseLockedVersions,
+  parseOverrides,
   parseProjectName
 } from '../src/core/pubspec';
 
@@ -104,5 +105,32 @@ sdks:
     expect(parseLockedVersions('').size).toBe(0);
     expect(parseLockedVersions('sdks:\n  dart: "3.0.0"').size).toBe(0);
     expect(parseLockedVersions('%%% broken').size).toBe(0);
+  });
+});
+
+describe('parseOverrides', () => {
+  const PUBSPEC = `
+name: app
+dependencies:
+  package_info_plus: ^10.1.0
+dependency_overrides:
+  package_info_plus: 10.1.0
+  my_fork:
+    path: ../my_fork
+`;
+
+  it('reads what each override pins to', () => {
+    expect(parseOverrides(PUBSPEC).get('package_info_plus')).toBe('10.1.0');
+  });
+
+  it('keeps path and git overrides, with no version to show', () => {
+    // They still switch off every constraint, which is what callers act on.
+    expect(parseOverrides(PUBSPEC).has('my_fork')).toBe(true);
+    expect(parseOverrides(PUBSPEC).get('my_fork')).toBe('');
+  });
+
+  it('is empty when there is no override section, or the file is broken', () => {
+    expect(parseOverrides('name: app\ndependencies:\n  dio: ^5.0.0').size).toBe(0);
+    expect(parseOverrides('%%% broken').size).toBe(0);
   });
 });
