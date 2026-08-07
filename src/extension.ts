@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 import { ChangelogService } from './changelogService';
 import { ProgressTracker } from './core/progress';
-import { Package } from './core/types';
+import { Package, PackageUpdate } from './core/types';
 import { PackageService } from './packageService';
 import { PubDevApi } from './pub/pubDevApi';
-import { ChangelogPanel, UpdateTarget } from './ui/changelogPanel';
+import { ChangelogPanel } from './ui/changelogPanel';
 import { PackageItem, PackagesTree } from './ui/packagesTree';
 import { setBadge, StatusBar } from './ui/statusBar';
 import { disposeTerminal } from './workspace';
@@ -21,7 +21,10 @@ export function activate(context: vscode.ExtensionContext) {
   const tree = new PackagesTree(packages);
   const view = vscode.window.createTreeView('pubgradePackages', { treeDataProvider: tree });
   const statusBar = new StatusBar();
-  const panel = new ChangelogPanel((target, version) => update(target, version));
+  const panel = new ChangelogPanel(update, (pubspecPath, packageName) => {
+    const pkg = packages.find(pubspecPath, packageName);
+    if (pkg) openChangelog(pkg, pubspecPath);
+  });
 
   function render(): void {
     tree.refresh();
@@ -29,17 +32,16 @@ export function activate(context: vscode.ExtensionContext) {
     setBadge(view, packages.outdatedCount);
   }
 
-  function update(target: UpdateTarget, version: string): void {
+  function update(pubspecPath: string, updates: PackageUpdate[]): void {
+    const names = updates.map(item => item.name).join(', ');
     try {
-      if (packages.update(target.pubspecPath, target.packageName, version)) {
+      if (packages.update(pubspecPath, updates)) {
         render();
       } else {
-        vscode.window.showWarningMessage(
-          `Could not find ${target.packageName} in ${target.pubspecPath}`
-        );
+        vscode.window.showWarningMessage(`Could not find ${names} in ${pubspecPath}`);
       }
     } catch (error) {
-      vscode.window.showErrorMessage(`Failed to update ${target.packageName}: ${error}`);
+      vscode.window.showErrorMessage(`Failed to update ${names}: ${error}`);
     }
   }
 
@@ -66,7 +68,7 @@ export function activate(context: vscode.ExtensionContext) {
         },
         () => changelogs.load(pkg)
       );
-      panel.show(request, { pubspecPath, packageName: pkg.name });
+      panel.show(request, { pubspecPath, packageName: pkg.name }, pkg);
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to fetch changelog for ${pkg.name}: ${error}`);
     }
@@ -80,10 +82,14 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.commands.registerCommand('pubgrade.refresh', refresh),
 
-    // Clicking a row: outdated packages open their changelog, the rest just say so.
+    // Clicking a row: anything with an update to explain opens the changelog,
+    // the rest just say so. Blocked packages open too — that is where the
+    // explanation of what is blocking them lives.
     vscode.commands.registerCommand('pubgrade.open', (item?: PackageItem) => {
       if (!item) return;
-      if (item.pkg.isOutdated) return openChangelog(item.pkg, item.pubspecPath);
+      if (item.pkg.isOutdated || item.pkg.conflict || item.pkg.override) {
+        return openChangelog(item.pkg, item.pubspecPath);
+      }
       vscode.window.showInformationMessage(
         `${item.pkg.name} is up to date (${item.pkg.currentVersion})`
       );
