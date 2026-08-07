@@ -40,6 +40,25 @@ function collect(section: unknown, isDev: boolean): Dependency[] {
   return dependencies;
 }
 
+/**
+ * `dependency_overrides:` as name -> what it is pinned to.
+ *
+ * An override tells pub to ignore every constraint anyone has on that package,
+ * so a conflict about it is not in force. Entries written as a map (`path:`,
+ * `git:`) are included too, with an empty value — what matters is that the
+ * package is overridden, not what it points at.
+ */
+export function parseOverrides(pubspecText: string): Map<string, string> {
+  const overrides = new Map<string, string>();
+  const doc = loadYaml(pubspecText);
+  if (!isRecord(doc?.dependency_overrides)) return overrides;
+
+  for (const [name, value] of Object.entries(doc.dependency_overrides)) {
+    overrides.set(name, typeof value === 'string' ? value : '');
+  }
+  return overrides;
+}
+
 /** The `name:` field of pubspec.yaml, or null when it is missing or malformed. */
 export function parseProjectName(pubspecText: string): string | null {
   const doc = loadYaml(pubspecText);

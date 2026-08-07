@@ -2,7 +2,11 @@ import * as vscode from 'vscode';
 import {
   byOutdatedCountThenName,
   byOutdatedThenName,
-  countOutdated,
+  conflictTooltip,
+  CONFLICT_STYLE,
+  isBlocked,
+  overrideTooltip,
+  projectSummary,
   updateTooltip,
   UPDATE_STYLES
 } from '../core/presentation';
@@ -14,9 +18,8 @@ class ProjectItem extends vscode.TreeItem {
   constructor(readonly project: Project) {
     super(project.name, vscode.TreeItemCollapsibleState.Collapsed);
 
-    const outdated = countOutdated(project);
     this.iconPath = new vscode.ThemeIcon('folder');
-    this.description = outdated > 0 ? `${outdated} outdated` : 'all up to date';
+    this.description = projectSummary(project);
     this.contextValue = 'project';
   }
 }
@@ -26,7 +29,25 @@ export class PackageItem extends vscode.TreeItem {
   constructor(readonly pkg: Package, readonly pubspecPath: string) {
     super(pkg.name, vscode.TreeItemCollapsibleState.None);
 
-    if (pkg.isOutdated) {
+    if (isBlocked(pkg)) {
+      this.description = `${pkg.currentVersion} → ${pkg.latestVersion}  blocked`;
+      this.iconPath = new vscode.ThemeIcon(
+        CONFLICT_STYLE.icon,
+        new vscode.ThemeColor(CONFLICT_STYLE.color)
+      );
+      this.tooltip = conflictTooltip(pkg);
+      this.contextValue = 'conflictedPackage';
+    } else if (pkg.override) {
+      // Pub installs whatever the override says, so this is not blocked —
+      // but the row has to admit the version here is not the whole story.
+      const style = UPDATE_STYLES[pkg.updateType];
+      this.description = pkg.isOutdated
+        ? `${pkg.currentVersion} → ${pkg.latestVersion}  overridden`
+        : `${pkg.currentVersion}  overridden`;
+      this.iconPath = new vscode.ThemeIcon(style.icon, new vscode.ThemeColor(style.color));
+      this.tooltip = overrideTooltip(pkg);
+      this.contextValue = 'overriddenPackage';
+    } else if (pkg.isOutdated) {
       const style = UPDATE_STYLES[pkg.updateType];
       this.description = `${pkg.currentVersion} → ${pkg.latestVersion}`;
       this.iconPath = new vscode.ThemeIcon(style.icon, new vscode.ThemeColor(style.color));
