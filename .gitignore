@@ -3,3 +3,8 @@ out
 *.vsix
 coverage
 .DS_Store
+
+# JetBrains client (Gradle)
+.gradle
+.intellijPlatform
+clients/intellij/build
