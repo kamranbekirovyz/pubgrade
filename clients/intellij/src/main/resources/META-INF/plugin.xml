@@ -1,5 +1,5 @@
 <idea-plugin>
-    <id>dev.pubgrade.intellij</id>
+    <id>dev.pubgrade</id>
     <name>Pubgrade</name>
     <vendor email="kamranbekirovyz@gmail.com" url="https://github.com/kamranbekirovyz/pubgrade">
         Kamran Bekirov
