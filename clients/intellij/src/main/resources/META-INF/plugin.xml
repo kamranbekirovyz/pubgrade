@@ -1,0 +1,47 @@
+<idea-plugin>
+    <id>dev.pubgrade.intellij</id>
+    <name>Pubgrade</name>
+    <vendor email="kamranbekirovyz@gmail.com" url="https://github.com/kamranbekirovyz/pubgrade">
+        Kamran Bekirov
+    </vendor>
+
+    <description><![CDATA[
+        Never miss a Flutter package update again. Check for updates, read the
+        changelog, and update with one click.
+        <ul>
+          <li>Every dependency listed with its current and latest version</li>
+          <li>Outdated packages sorted first, coloured by how big the jump is</li>
+          <li>Changelogs pulled from pub.dev, cut down to the versions you would gain</li>
+          <li>One-click updates that keep your <code>^</code> constraints</li>
+          <li>Monorepo support: every pubspec.yaml is found and grouped</li>
+        </ul>
+    ]]></description>
+
+    <!-- Platform only, on purpose: no Dart or Flutter plugin is required, so
+         this installs in IntelliJ IDEA, Android Studio and every other IDE. -->
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow
+            id="Pubgrade"
+            anchor="right"
+            icon="AllIcons.Toolwindows.Dependencies"
+            factoryClass="dev.pubgrade.ui.PubgradeToolWindowFactory"/>
+
+        <statusBarWidgetFactory
+            id="Pubgrade"
+            implementation="dev.pubgrade.ui.PubgradeStatusBarWidgetFactory"/>
+
+        <notificationGroup
+            id="Pubgrade"
+            displayType="BALLOON"/>
+    </extensions>
+
+    <actions>
+        <action
+            id="Pubgrade.Refresh"
+            class="dev.pubgrade.ui.RefreshAction"
+            text="Refresh Packages"
+            description="Check pub.dev for newer versions"/>
+    </actions>
+</idea-plugin>
