@@ -2,6 +2,8 @@
 
 See what changed before you upgrade. Works in IntelliJ IDEA, Android Studio, and every other JetBrains IDE.
 
+[Install from the JetBrains Marketplace](https://plugins.jetbrains.com/plugin/33426-pubgrade)
+
 ## Features
 
 - **Tool window** with every dependency and its current and latest version

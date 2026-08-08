@@ -2,6 +2,8 @@
 
 See what changed before you upgrade. Works in VS Code, Cursor and Windsurf.
 
+Also available for [IntelliJ IDEA and Android Studio](https://plugins.jetbrains.com/plugin/33426-pubgrade).
+
 [📹 Watch demo video](https://pubgrade.dev/pubgrade.mp4)
 
 ## 🩵 Want to say "thanks"?

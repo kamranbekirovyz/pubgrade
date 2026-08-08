@@ -6,10 +6,10 @@ Never miss a package update again. Check for updates, view changelogs, and updat
 
 ## Clients
 
-| Client | Editors | Status |
+| Client | Editors | Install |
 |---|---|---|
-| [VS Code](clients/vscode) | VS Code, Cursor, Windsurf | Released |
-| [JetBrains](clients/intellij) | IntelliJ IDEA, Android Studio | Works, not released |
+| [VS Code](clients/vscode) | VS Code, Cursor, Windsurf | [Marketplace](https://marketplace.visualstudio.com/items?itemName=KamranBekirov.flutter-pubgrade) |
+| [JetBrains](clients/intellij) | IntelliJ IDEA, Android Studio | [Marketplace](https://plugins.jetbrains.com/plugin/33426-pubgrade) |
 
 ## Working on the VS Code client
 
