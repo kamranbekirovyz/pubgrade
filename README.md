@@ -9,9 +9,7 @@ Never miss a package update again. Check for updates, view changelogs, and updat
 | Client | Editors | Status |
 |---|---|---|
 | [VS Code](clients/vscode) | VS Code, Cursor, Windsurf | Released |
-| JetBrains | IntelliJ IDEA, Android Studio | Not started |
-
-Each client lives in its own folder under `clients/` and ships on its own. They do not share code, because they are written in different languages, but they share the same behaviour and the same docs.
+| [JetBrains](clients/intellij) | IntelliJ IDEA, Android Studio | Works, not released |
 
 ## Working on the VS Code client
 
@@ -22,6 +20,16 @@ npm test
 ```
 
 Press F5 from the repo root to launch it in a new window. Read [clients/vscode/STYLE.md](clients/vscode/STYLE.md) before changing anything.
+
+## Working on the JetBrains client
+
+```bash
+cd clients/intellij
+./gradlew test
+./gradlew runIde
+```
+
+`runIde` opens a throwaway IntelliJ with the plugin already installed. See [clients/intellij/README.md](clients/intellij/README.md).
 
 ## 🩵 Want to say "thanks"?
 
