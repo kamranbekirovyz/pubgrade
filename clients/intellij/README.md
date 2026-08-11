@@ -48,7 +48,7 @@ Opens a fresh IntelliJ with the plugin installed. For Android Studio:
 ./gradlew buildPlugin
 ```
 
-Drops `build/distributions/pubgrade-2.1.0.zip`. Install with **Settings > Plugins > gear icon > Install Plugin from Disk**.
+Drops `build/distributions/pubgrade-2.1.1.zip`. Install with **Settings > Plugins > gear icon > Install Plugin from Disk**.
 
 ## Layout
 

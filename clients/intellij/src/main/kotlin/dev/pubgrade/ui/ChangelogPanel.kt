@@ -1,9 +1,9 @@
 package dev.pubgrade.ui
 
 import com.intellij.ide.BrowserUtil
-import com.intellij.ide.ui.laf.darcula.ui.DarculaButtonUI
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.util.Key
 import com.intellij.ui.ColorUtil
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.ActionLink
@@ -32,6 +32,22 @@ import javax.swing.JPanel
 import javax.swing.Scrollable
 import javax.swing.ScrollPaneConstants
 import javax.swing.event.HyperlinkEvent
+
+/**
+ * The client property that makes a button the filled one.
+ *
+ * The key itself belongs to DarculaButtonUI, which the platform marks internal
+ * and the Marketplace verifier rejects, so it is looked up by name instead. The
+ * lookup only finds it once the look and feel has created a button UI, which is
+ * why this is a function rather than a stored value, and why the call sites
+ * fall back to a plain button when it comes back null.
+ *
+ * Looking one up by name is deprecated but still the only public way in: Key
+ * compares by identity, so building a second key with the same name would never
+ * match the one the button UI reads.
+ */
+@Suppress("DEPRECATION")
+private fun defaultStyleKey(): Key<*>? = Key.findKeyByName("JButton.styleDefault")
 
 /** Which pubspec.yaml the currently shown package belongs to. */
 data class UpdateTarget(val pubspecPath: String, val packageName: String)
@@ -235,7 +251,7 @@ class ChangelogPanel(
      */
     private fun updateButton(label: String, version: String, primary: Boolean = false) =
         JButton(label).apply {
-            if (primary) putClientProperty(DarculaButtonUI.DEFAULT_STYLE_KEY, true)
+            if (primary) defaultStyleKey()?.let { putClientProperty(it, true) }
             addActionListener {
                 val current = target ?: return@addActionListener
                 onUpdate(current, version)
