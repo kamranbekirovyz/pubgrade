@@ -1,13 +1,14 @@
 package dev.pubgrade.ui
 
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.util.ScalableIcon
 import com.intellij.ui.JBColor
-import com.intellij.util.ui.JBUI
 import java.awt.Component
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.RenderingHints
 import javax.swing.Icon
+import kotlin.math.roundToInt
 
 /**
  * The icons the plugin shows.
@@ -32,14 +33,27 @@ object PubgradeIcons {
  * that. Painting the dot ourselves is a dozen lines and works on every version
  * the plugin supports.
  *
+ * [ScalableIcon] is not optional here: the tool window stripe casts whatever it
+ * is handed, so a plain Icon throws before it ever gets painted.
+ *
  * The colour is read from the theme by name, so it follows the IDE rather than
  * being a hardcoded blue that fights a light or high contrast look.
  */
-private class BadgedIcon(private val base: Icon) : Icon {
+private class BadgedIcon(
+    private val base: Icon,
+    private val scale: Float = 1f
+) : Icon, ScalableIcon {
 
     override fun getIconWidth() = base.iconWidth
 
     override fun getIconHeight() = base.iconHeight
+
+    override fun getScale() = scale
+
+    override fun scale(scaleFactor: Float): Icon {
+        val scaled = (base as? ScalableIcon)?.scale(scaleFactor) ?: return this
+        return BadgedIcon(scaled, scaleFactor)
+    }
 
     override fun paintIcon(component: Component?, graphics: Graphics, x: Int, y: Int) {
         base.paintIcon(component, graphics, x, y)
@@ -47,7 +61,9 @@ private class BadgedIcon(private val base: Icon) : Icon {
         val g = graphics.create() as Graphics2D
         try {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-            val size = JBUI.scale(DOT)
+            // Taken from the icon rather than scaled from a constant, so the dot
+            // stays the same fraction of the glyph at every display scale.
+            val size = (iconWidth * DOT_RATIO).roundToInt().coerceAtLeast(3)
             g.color = DOT_COLOR
             g.fillOval(x + iconWidth - size, y, size, size)
         } finally {
@@ -56,8 +72,8 @@ private class BadgedIcon(private val base: Icon) : Icon {
     }
 
     private companion object {
-        /** Unscaled, because the stripe icon is 13 pixels wide at 100%. */
-        const val DOT = 5
+        /** Five pixels against the stock 13 pixel stripe glyph. */
+        const val DOT_RATIO = 5f / 13f
 
         val DOT_COLOR = JBColor.namedColor(
             "IconBadge.informationBackground",
