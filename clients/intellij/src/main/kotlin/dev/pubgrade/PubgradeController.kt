@@ -10,7 +10,6 @@ import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project as IdeProject
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.WindowManager
-import com.intellij.ui.BadgeIconSupplier
 import com.intellij.ui.content.Content
 import dev.pubgrade.core.Package
 import dev.pubgrade.core.progressStep
@@ -54,7 +53,9 @@ class PubgradeController(private val project: IdeProject) {
      * both have room for it.
      */
     private fun showCount(outdated: Int) {
-        toolWindow?.setIcon(BadgeIconSupplier(PubgradeIcons.ToolWindow).getInfoIcon(outdated > 0))
+        toolWindow?.setIcon(
+            if (outdated > 0) PubgradeIcons.ToolWindowBadged else PubgradeIcons.ToolWindow
+        )
         packagesTab?.displayName = if (outdated > 0) "Packages  $outdated" else "Packages"
     }
 
