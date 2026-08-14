@@ -69,7 +69,8 @@ data class UpdateTarget(val pubspecPath: String, val packageName: String)
  */
 class ChangelogPanel(
     parent: Disposable,
-    private val onUpdate: (UpdateTarget, String) -> Unit
+    private val onUpdate: (UpdateTarget, String) -> Unit,
+    private val onClose: () -> Unit
 ) : JPanel(BorderLayout()) {
 
     private var target: UpdateTarget? = null
@@ -78,15 +79,33 @@ class ChangelogPanel(
     private val scroll = JBScrollPane(content).apply {
         horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
         // On the pane rather than on the first row, so every state gets the
-        // same gap below the tab strip: the title, the spinner, the placeholder.
+        // same gap below the header: the title, the spinner, the placeholder.
         border = JBUI.Borders.emptyTop(GAP)
     }
     private val spinner = AsyncProcessIcon("Pubgrade changelog")
         .also { Disposer.register(parent, it) }
 
     init {
+        add(backBar(), BorderLayout.NORTH)
         add(scroll, BorderLayout.CENTER)
         showEmpty()
+    }
+
+    /**
+     * The way back to the package list, in place of a second tab. Two tabs cost
+     * width the docked panel does not have, and the IDE folds them into a
+     * dropdown as soon as it runs out.
+     */
+    private fun backBar() = JPanel().apply {
+        isOpaque = false
+        layout = BoxLayout(this, BoxLayout.X_AXIS)
+        border = JBUI.Borders.compound(
+            JBUI.Borders.customLine(JBColor.border(), 0, 0, 1, 0),
+            JBUI.Borders.empty(GAP, SIDE, GAP, SIDE)
+        )
+
+        add(ActionLink("Close") { onClose() })
+        add(Box.createHorizontalGlue())
     }
 
     fun showEmpty() {

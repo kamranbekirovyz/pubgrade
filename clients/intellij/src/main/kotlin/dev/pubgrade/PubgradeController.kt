@@ -9,12 +9,13 @@ import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project as IdeProject
 import com.intellij.openapi.wm.ToolWindow
+import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.openapi.wm.WindowManager
-import com.intellij.ui.content.Content
 import dev.pubgrade.core.Package
 import dev.pubgrade.core.progressStep
 import dev.pubgrade.ui.ChangelogPanel
 import dev.pubgrade.ui.PubgradeIcons
+import dev.pubgrade.ui.PubgradeToolWindowFactory
 import dev.pubgrade.ui.UpdateTarget
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -34,7 +35,9 @@ class PubgradeController(private val project: IdeProject) {
     var onRender: (() -> Unit)? = null
     var changelog: ChangelogPanel? = null
     var toolWindow: ToolWindow? = null
-    var packagesTab: Content? = null
+
+    /** Swaps the tool window between the package list and the changelog. */
+    var showCard: ((String) -> Unit)? = null
 
     private val refreshing = AtomicBoolean(false)
 
@@ -53,19 +56,17 @@ class PubgradeController(private val project: IdeProject) {
     }
 
     /**
-     * How many packages are waiting, without opening anything: a dot on the
-     * stripe icon and the count on the tab.
+     * A dot on the stripe icon: 13 pixels wide, so nothing legible fits there.
      *
-     * The stripe icon carries a dot rather than the number, because it is 13
-     * pixels wide and the platform's own badge is the only thing that stays
-     * legible there. The number goes on the tab and in the status bar, which
-     * both have room for it.
+     * Looked up by id when the field is still null, which is the case for the
+     * scan that runs at startup, before anyone has opened the panel.
      */
     private fun showCount(outdated: Int) {
-        toolWindow?.setIcon(
+        val window = toolWindow
+            ?: ToolWindowManager.getInstance(project).getToolWindow(TOOL_WINDOW_ID)
+        window?.setIcon(
             if (outdated > 0) PubgradeIcons.ToolWindowBadged else PubgradeIcons.ToolWindow
         )
-        packagesTab?.displayName = if (outdated > 0) "Packages  $outdated" else "Packages"
     }
 
     /**
@@ -110,9 +111,12 @@ class PubgradeController(private val project: IdeProject) {
             return
         }
 
-        // Before the task is queued, so the tab never sits on the previous
+        // Before the task is queued, so the panel never sits on the previous
         // package's changelog while this one is on its way.
-        onEdt { changelog?.showLoading(pkg.name) }
+        onEdt {
+            changelog?.showLoading(pkg.name)
+            showCard?.invoke(PubgradeToolWindowFactory.CHANGELOG_CARD)
+        }
 
         object : Task.Backgroundable(project, "Fetching changelog for ${pkg.name}", false) {
             override fun run(indicator: ProgressIndicator) {
@@ -168,11 +172,10 @@ class PubgradeController(private val project: IdeProject) {
      * The list is the thing that changed, and opening the same package again
      * builds its changelog afresh from the new current version.
      */
-    private fun showPackages() {
+    fun showPackages() {
         onEdt {
             changelog?.showEmpty()
-            val tab = packagesTab ?: return@onEdt
-            toolWindow?.contentManager?.setSelectedContent(tab)
+            showCard?.invoke(PubgradeToolWindowFactory.PACKAGES_CARD)
         }
     }
 
@@ -181,6 +184,9 @@ class PubgradeController(private val project: IdeProject) {
 
     companion object {
         const val STATUS_BAR_WIDGET_ID = "Pubgrade"
+
+        /** Must match the toolWindow id in plugin.xml. */
+        const val TOOL_WINDOW_ID = "Pubgrade"
 
         fun getInstance(project: IdeProject): PubgradeController = project.service()
     }

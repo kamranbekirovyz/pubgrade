@@ -8,13 +8,17 @@ import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.content.ContentFactory
 import dev.pubgrade.PackageService
 import dev.pubgrade.PubgradeController
+import java.awt.CardLayout
+import javax.swing.JPanel
+
+private const val PACKAGES = "packages"
+private const val CHANGELOG = "changelog"
 
 /**
  * Builds the tool window and hands its panels to the controller.
  *
- * Two tabs rather than the editor-side webview the VS Code client opens: a tool
- * window is the one surface every JetBrains IDE agrees on, and putting the
- * changelog beside the list would fight for width in a docked panel.
+ * One panel that swaps its contents rather than two tabs: clicking a package
+ * covers the list, and the changelog's own close link uncovers it.
  */
 class PubgradeToolWindowFactory : ToolWindowFactory, DumbAware {
 
@@ -22,23 +26,27 @@ class PubgradeToolWindowFactory : ToolWindowFactory, DumbAware {
         val controller = PubgradeController.getInstance(project)
         val service = PackageService.getInstance(project)
 
-        val changelog = ChangelogPanel(toolWindow.disposable) { target, version ->
-            controller.update(target, version)
-        }
+        val cards = CardLayout()
+        val root = JPanel(cards)
+
+        val changelog = ChangelogPanel(
+            parent = toolWindow.disposable,
+            onUpdate = { target, version -> controller.update(target, version) },
+            onClose = { controller.showPackages() }
+        )
         val packages = PackagesTreePanel(service) { pkg, pubspecPath ->
-            if (pkg.isOutdated) selectChangelogTab(toolWindow)
             controller.open(pkg, pubspecPath)
         }
 
+        root.add(packages, PACKAGES)
+        root.add(changelog, CHANGELOG)
+
         controller.changelog = changelog
         controller.onRender = { packages.render() }
+        controller.showCard = { name -> cards.show(root, name) }
 
-        val contents = ContentFactory.getInstance()
-        val packagesTab = contents.createContent(packages, "Packages", false)
-            .apply { isCloseable = false }
-        toolWindow.contentManager.addContent(packagesTab)
         toolWindow.contentManager.addContent(
-            contents.createContent(changelog, "Changelog", false).apply { isCloseable = false }
+            ContentFactory.getInstance().createContent(root, "", false).apply { isCloseable = false }
         )
 
         // Refresh lives in the tool window's own title bar, next to the options
@@ -50,12 +58,14 @@ class PubgradeToolWindowFactory : ToolWindowFactory, DumbAware {
         )
 
         controller.toolWindow = toolWindow
-        controller.packagesTab = packagesTab
-        controller.refresh()
+
+        // The startup scan usually got here first, so opening the panel just
+        // draws what it found rather than checking pub.dev all over again.
+        if (service.hasScanned) controller.render() else controller.refresh()
     }
 
-    private fun selectChangelogTab(toolWindow: ToolWindow) {
-        val manager = toolWindow.contentManager
-        manager.getContent(1)?.let { manager.setSelectedContent(it) }
+    companion object {
+        const val PACKAGES_CARD = PACKAGES
+        const val CHANGELOG_CARD = CHANGELOG
     }
 }
