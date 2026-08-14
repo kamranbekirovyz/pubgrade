@@ -22,6 +22,8 @@
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <postStartupActivity implementation="dev.pubgrade.PubgradeStartupActivity"/>
+
         <toolWindow
             id="Pubgrade"
             anchor="right"

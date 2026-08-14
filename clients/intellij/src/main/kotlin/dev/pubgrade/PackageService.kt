@@ -35,6 +35,11 @@ class PackageService(private val ideProject: IdeProject) {
     var all: List<Project> = emptyList()
         private set
 
+    /** Distinguishes a project with no packages from one nobody has checked. */
+    @Volatile
+    var hasScanned: Boolean = false
+        private set
+
     val outdatedCount: Int
         get() = all.sumOf { project -> project.packages.count { it.isOutdated } }
 
@@ -63,6 +68,7 @@ class PackageService(private val ideProject: IdeProject) {
         }
 
         all = projects
+        hasScanned = true
     }
 
     /**
