@@ -2,8 +2,8 @@
 
 ## 2.1.3
 
+- Improvements to the extension
 - Version now matches the JetBrains plugin, so both clients release together
-- Rewritten readme
 
 ## 2.1.0
 
