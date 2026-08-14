@@ -1,37 +1,23 @@
-# Pubgrade
+# Never miss a package update with Pubgrade
 
-See what changed before you upgrade. Works in VS Code, Cursor and Windsurf.
+You added packages to your Flutter app. They get updates. You miss them all. Pubgrade shows every one, and what changed, right in your editor.
 
-Also available for [IntelliJ IDEA and Android Studio](https://plugins.jetbrains.com/plugin/33426-pubgrade).
-
-[📹 Watch demo video](https://pubgrade.dev/pubgrade.mp4)
-
-## 🩵 Want to say "thanks"?
-
-If you like this package, consider checking [UserOrient](https://userorient.com), my side project for Flutter apps to collect feedback from users.
-
-<a href="https://userorient.com" target="_blank">
-	<img src="https://www.userorient.com/assets/extras/sponsor.png">
-</a>
+Available for [VS Code](https://marketplace.visualstudio.com/items?itemName=KamranBekirov.flutter-pubgrade), [VS Code forks](https://open-vsx.org/extension/KamranBekirov/flutter-pubgrade) (Cursor, Antigravity, Windsurf, VSCodium), and [IntelliJ IDEA and Android Studio](https://plugins.jetbrains.com/plugin/33426-pubgrade).
 
 ## Features
 
-- **Sidebar panel** with every dependency and its current and latest version
-- **Outdated detection** with warning icons and a badge count
-- **Changelogs** from pub.dev, cut down to the versions you would gain
-- **One-click updates** that keep your `^` constraints
-- **Automatic sorting** that puts outdated packages first
-- **Update type icons** for major (🔴), minor (🟡) and patch (🔵)
-- **Monorepo support** that finds every `pubspec.yaml` and groups by project
+📋 **See every package at once.** Open the panel and your whole dependency list is there, each one showing the version you have and the version that exists.
 
-## Usage
+📖 **Read what actually changed.** Click a package and Pubgrade fetches its changelog from pub.dev so you can be aware before updating the package.
 
-1. Open a Flutter project
-2. Click **Pubgrade** in the Activity Bar
-3. Outdated packages (⚠️) are listed first
-4. Click a package to read its changelog
-5. Click **Update to X.X.X**
+⚡ **Update in one click.** Pubgrade writes the new version into your `pubspec.yaml` and runs `flutter pub get` for you. If you pinned a package with a caret, it stays a caret.
+
+🚦 **Know how big the jump is.** Major, minor and patch updates are coloured differently, so a release that could break your app never looks the same as a bug fix.
+
+📦 **Works in a monorepo.** Every `pubspec.yaml` in the workspace is found and grouped under its own project, so a melos repo reads as cleanly as a single app.
+
+🔒 **Nothing runs behind your back.** No telemetry, and no commands on your machine beyond the `flutter pub get` you asked for. Pubgrade reads your pubspec files and talks to pub.dev.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](../../LICENSE)

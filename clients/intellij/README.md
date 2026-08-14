@@ -1,74 +1,22 @@
-# Pubgrade for JetBrains IDEs
+# Never miss a package update with Pubgrade
 
-See what changed before you upgrade. Works in IntelliJ IDEA, Android Studio, and every other JetBrains IDE.
+You added packages to your Flutter app. They get updates. You miss them all. Pubgrade shows every one, and what changed, right in your editor.
 
-[Install from the JetBrains Marketplace](https://plugins.jetbrains.com/plugin/33426-pubgrade)
+Available for [VS Code](https://marketplace.visualstudio.com/items?itemName=KamranBekirov.flutter-pubgrade), [VS Code forks](https://open-vsx.org/extension/KamranBekirov/flutter-pubgrade) (Cursor, Antigravity, Windsurf, VSCodium), and [IntelliJ IDEA and Android Studio](https://plugins.jetbrains.com/plugin/33426-pubgrade).
 
 ## Features
 
-- **Tool window** with every dependency and its current and latest version
-- **Outdated detection** with a badge on the stripe icon and a count on the tab
-- **Changelogs** from pub.dev, cut down to the versions you would gain
-- **One-click updates** that keep your `^` constraints
-- **Update type icons** for major, minor and patch
-- **Monorepo support** that finds every `pubspec.yaml` and groups by project
+📋 **See every package at once.** Open the panel and your whole dependency list is there, each one showing the version you have and the version that exists.
 
-## Usage
+📖 **Read what actually changed.** Click a package and Pubgrade fetches its changelog from pub.dev so you can be aware before updating the package.
 
-1. Open a Flutter project
-2. Click **Pubgrade** on the right edge
-3. Outdated packages are listed first
-4. Click a package to read its changelog
-5. Click **Update to X.X.X**
+⚡ **Update in one click.** Pubgrade writes the new version into your `pubspec.yaml` and runs `flutter pub get` for you. If you pinned a package with a caret, it stays a caret.
 
-## Run it
+🚦 **Know how big the jump is.** Major, minor and patch updates are coloured differently, so a release that could break your app never looks the same as a bug fix.
 
-```bash
-cd clients/intellij
-./gradlew runIde
-```
+📦 **Works in a monorepo.** Every `pubspec.yaml` in the workspace is found and grouped under its own project, so a melos repo reads as cleanly as a single app.
 
-Opens a fresh IntelliJ with the plugin installed. For Android Studio:
-
-```bash
-./gradlew runIde -PlocalPath="/Applications/Android Studio.app"
-```
-
-## Test it
-
-```bash
-./gradlew test
-```
-
-75 unit tests, no IDE needed.
-
-## Build a zip
-
-```bash
-./gradlew buildPlugin
-```
-
-Drops `build/distributions/pubgrade-2.1.3.zip`. Install with **Settings > Plugins > gear icon > Install Plugin from Disk**.
-
-## Layout
-
-Three layers, imports only point downward.
-
-```
-PubgradeController.kt   wiring: background tasks, notifications
-  ├─ ui/                what the user sees      → imports com.intellij
-  ├─ Workspace.kt       files, processes        → imports com.intellij + java.io
-  ├─ PackageService.kt  the one stateful object
-  ├─ ChangelogService.kt
-  └─ pub/               HTTP to pub.dev         → imports java.net.http + gson
-        └─ core/        the rules               → imports nothing
-```
-
-`core/` must never import `com.intellij`, `java.io`, or gson. That is what keeps the tests running in a second without an IDE.
-
-## Requirements
-
-JDK 17 or newer. The Gradle wrapper fetches the rest.
+🔒 **Nothing runs behind your back.** No telemetry, and no commands on your machine beyond the `flutter pub get` you asked for. Pubgrade reads your pubspec files and talks to pub.dev.
 
 ## License
 
