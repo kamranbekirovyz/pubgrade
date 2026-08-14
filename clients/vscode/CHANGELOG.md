@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.3
+
+- Version now matches the JetBrains plugin, so both clients release together
+- Rewritten readme
+
 ## 2.1.0
 
 - Fixed `flutter pub get` running in the wrong folder in monorepos

@@ -2,7 +2,7 @@
   "name": "flutter-pubgrade",
   "displayName": "Pubgrade",
   "description": "Manage packages: check updates, view changelogs, update with one click",
-  "version": "2.1.0",
+  "version": "2.1.3",
   "publisher": "KamranBekirov",
   "icon": "resources/icon.png",
   "author": {
