@@ -170,9 +170,10 @@ class ChangelogPanel(
         scroll.viewport.viewPosition = Point(0, 0)
     }
 
+    /** [GAP] and not [GAP_SECTION]: the scroll pane already adds one above. */
     private fun title(packageName: String) = JBLabel(packageName).apply {
         font = font.deriveFont(Font.BOLD, font.size + 8f)
-        border = JBUI.Borders.empty(GAP_SECTION, SIDE, 0, SIDE)
+        border = JBUI.Borders.empty(GAP, SIDE, 0, SIDE)
     }
 
     /**
@@ -395,11 +396,9 @@ class ChangelogPanel(
  * Every gap is one of these, so the layout reads as deliberate rather than as
  * whatever each row happened to need. [SIDE] is the one left and right margin
  * for every row, which is what keeps the title, the captions, the release
- * headings and the bullets on a single left edge; it stays small because the
- * packages tree beside it already insets its own rows, and a wider margin here
- * would make the changelog look indented relative to the list it came from.
+ * headings and the bullets on a single left edge.
  */
-private const val SIDE = 8
+private const val SIDE = 14
 private const val GAP_TIGHT = 4
 private const val GAP = 8
 private const val GAP_SECTION = 24
