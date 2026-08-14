@@ -17,6 +17,19 @@
         </ul>
     ]]></description>
 
+    <!-- Shown as "What's New" on the Marketplace and in the plugin dialog.
+         Only the newest release: the rest live in CHANGELOG.md. -->
+    <change-notes><![CDATA[
+        <b>2.1.3</b>
+        <ul>
+          <li>Packages are checked when the project opens, not only when you open the tool window</li>
+          <li>Changelogs open at the top instead of scrolled to the bottom</li>
+          <li>The Changelog tab is now a panel with a Close link, so a narrow tool window no longer folds both tabs into a dropdown</li>
+          <li>The status bar no longer says "Packages up to date" before anything has been checked</li>
+          <li>Wider margins in the changelog</li>
+        </ul>
+    ]]></change-notes>
+
     <!-- Platform only, on purpose: no Dart or Flutter plugin is required, so
          this installs in IntelliJ IDEA, Android Studio and every other IDE. -->
     <depends>com.intellij.modules.platform</depends>
