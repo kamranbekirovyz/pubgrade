@@ -32,6 +32,7 @@ import javax.swing.JPanel
 import javax.swing.Scrollable
 import javax.swing.ScrollPaneConstants
 import javax.swing.event.HyperlinkEvent
+import javax.swing.text.DefaultCaret
 
 /**
  * The client property that makes a button the filled one.
@@ -423,6 +424,10 @@ private class WrappingHtmlPane(html: String) : JEditorPane("text/html", html) {
     init {
         isEditable = false
         isOpaque = false
+        // Built with its html, so the caret starts at the end of the document
+        // and drags the scroll pane down to it once the row is laid out.
+        (caret as? DefaultCaret)?.updatePolicy = DefaultCaret.NEVER_UPDATE
+        caretPosition = 0
         // Use the IDE's own UI font rather than the renderer's serif default.
         putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, true)
         font = UIUtil.getLabelFont()
@@ -485,6 +490,13 @@ private class ContentPanel : JPanel(GridBagLayout()), Scrollable {
         revalidate()
         repaint()
     }
+
+    /**
+     * Dropped, so the html panes cannot pull the page down to themselves while
+     * they lay out. The wheel and the scrollbar move the viewport directly and
+     * are unaffected.
+     */
+    override fun scrollRectToVisible(contentRect: Rectangle) = Unit
 
     override fun getPreferredScrollableViewportSize(): Dimension = preferredSize
 
