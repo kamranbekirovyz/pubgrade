@@ -31,8 +31,16 @@ class PubgradeStatusBarWidgetFactory : StatusBarWidgetFactory, DumbAware {
 
         override fun dispose() = Unit
 
+        /**
+         * "Up to date" needs a finished scan behind it. Before one, the count is
+         * zero because nothing has been counted, not because nothing is behind.
+         */
         override fun getText(): String {
-            val outdated = PackageService.getInstance(project).outdatedCount
+            val service = PackageService.getInstance(project)
+            if (PubgradeController.getInstance(project).isRefreshing) return "Checking packages"
+            if (!service.hasScanned) return "Pubgrade"
+
+            val outdated = service.outdatedCount
             return if (outdated > 0) {
                 "$outdated outdated ${pluralPackages(outdated)}"
             } else {

@@ -16,6 +16,7 @@ import dev.pubgrade.core.progressStep
 import dev.pubgrade.ui.ChangelogPanel
 import dev.pubgrade.ui.PubgradeIcons
 import dev.pubgrade.ui.UpdateTarget
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Wiring only: keep the views in sync, run the slow parts off the UI thread,
@@ -35,12 +36,20 @@ class PubgradeController(private val project: IdeProject) {
     var toolWindow: ToolWindow? = null
     var packagesTab: Content? = null
 
+    private val refreshing = AtomicBoolean(false)
+
+    val isRefreshing: Boolean get() = refreshing.get()
+
     fun render() {
         onEdt {
             onRender?.invoke()
             showCount(packages.outdatedCount)
-            WindowManager.getInstance().getStatusBar(project)?.updateWidget(STATUS_BAR_WIDGET_ID)
+            updateStatusBar()
         }
+    }
+
+    private fun updateStatusBar() {
+        WindowManager.getInstance().getStatusBar(project)?.updateWidget(STATUS_BAR_WIDGET_ID)
     }
 
     /**
@@ -59,8 +68,16 @@ class PubgradeController(private val project: IdeProject) {
         packagesTab?.displayName = if (outdated > 0) "Packages  $outdated" else "Packages"
     }
 
-    /** Rescans every pubspec.yaml and re-checks every dependency against pub.dev. */
+    /**
+     * Rescans every pubspec.yaml and re-checks every dependency against pub.dev.
+     *
+     * One at a time: opening the tool window mid-scan would otherwise start a
+     * second pass, and the two would race to write the same list.
+     */
     fun refresh() {
+        if (!refreshing.compareAndSet(false, true)) return
+        onEdt { updateStatusBar() }
+
         object : Task.Backgroundable(project, "Pubgrade", false) {
             override fun run(indicator: ProgressIndicator) {
                 indicator.isIndeterminate = false
@@ -75,7 +92,10 @@ class PubgradeController(private val project: IdeProject) {
                 Workspace.notify(project, "Failed to refresh packages: ${error.message}", NotificationType.ERROR)
             }
 
-            override fun onFinished() = render()
+            override fun onFinished() {
+                refreshing.set(false)
+                render()
+            }
         }.queue()
     }
 
